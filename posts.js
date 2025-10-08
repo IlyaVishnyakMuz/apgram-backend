@@ -177,7 +177,7 @@ router.post("/upload", upload.single("image"), async (req, res) => {
 
     if (!req.file)
       return res.status(400).json({ success: false, error: "Файл не загружен" });
-    const imageUrl = `http://localhost:${process.env.PORT || 4000}/uploads/${req.file.filename}`;
+    const imageUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
     res.json({ success: true, url: imageUrl.replace(/\\/g, "/") });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
