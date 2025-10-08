@@ -1,0 +1,510 @@
+openapi: 3.0.3
+info:
+  title: Telegram Post Generator API
+  version: 1.0.0
+  description: >
+    REST API для управления пользователями, их настройками, постами и автоматической публикацией в Telegram-каналы.
+servers:
+  - url: http://localhost:4000/api
+    description: Локальный сервер разработки
+
+tags:
+  - name: Users
+    description: Регистрация, авторизация и настройки пользователей
+  - name: Posts
+    description: Управление постами, файлами и автопостингом
+
+paths:
+  /users/register:
+    post:
+      tags: [Users]
+      summary: Регистрация нового пользователя
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password, telegram_token, channel_id]
+              properties:
+                username:
+                  type: string
+                  example: admin
+                password:
+                  type: string
+                  example: secret123
+                telegram_token:
+                  type: string
+                  example: 1234567890:ABC-DEF1234ghIklmNOP
+                channel_id:
+                  type: string
+                  example: "@my_channel"
+      responses:
+        "200":
+          description: Успешная регистрация
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  userId: { type: integer }
+                  auth_token: { type: string }
+        "400":
+          description: Ошибка ввода или пользователь уже существует
+
+  /users/login:
+    post:
+      tags: [Users]
+      summary: Вход пользователя
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username:
+                  type: string
+                  example: admin
+                password:
+                  type: string
+                  example: secret123
+      responses:
+        "200":
+          description: Успешный вход
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  userId: { type: integer }
+                  telegram_token: { type: string }
+                  channel_id: { type: string }
+                  auth_token: { type: string }
+        "403":
+          description: Неверный пароль
+        "404":
+          description: Пользователь не найден
+
+  /users/settings/{userId}:
+    get:
+      tags: [Users]
+      summary: Получение настроек пользователя
+      security:
+        - AuthTokenHeader: []
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Настройки пользователя
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  settings:
+                    $ref: "#/components/schemas/UserSettings"
+        "403":
+          description: Доступ запрещён
+        "404":
+          description: Пользователь не найден
+
+    put:
+      tags: [Users]
+      summary: Обновление настроек пользователя
+      security:
+        - AuthTokenHeader: []
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserSettings"
+      responses:
+        "200":
+          description: Настройки успешно обновлены
+        "403":
+          description: Доступ запрещён
+        "404":
+          description: Пользователь не найден
+
+  /posts/upload:
+    post:
+      tags: [Posts]
+      summary: Загрузка изображения
+      security:
+        - AuthTokenHeader: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [image]
+              properties:
+                image:
+                  type: string
+                  format: binary
+      responses:
+        "200":
+          description: Успешная загрузка
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  url: { type: string }
+        "400":
+          description: Ошибка загрузки или отсутствует токен
+
+  /posts:
+    post:
+      tags: [Posts]
+      summary: Создание нового поста
+      security:
+        - AuthTokenHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PostCreate"
+      responses:
+        "200":
+          description: Пост успешно создан
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  id: { type: integer }
+        "403":
+          description: Доступ запрещён
+        "400":
+          description: Ошибка данных
+
+  /posts/user/{userId}:
+    get:
+      tags: [Posts]
+      summary: Получение всех постов пользователя
+      security:
+        - AuthTokenHeader: []
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Список постов
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Post"
+        "403":
+          description: Доступ запрещён
+
+  /posts/{id}:
+    get:
+      tags: [Posts]
+      summary: Получить пост по ID
+      security:
+        - AuthTokenHeader: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Пост найден
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Post"
+        "403":
+          description: Доступ запрещён
+        "404":
+          description: Пост не найден
+
+    put:
+      tags: [Posts]
+      summary: Обновление поста
+      security:
+        - AuthTokenHeader: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PostUpdate"
+      responses:
+        "200":
+          description: Пост обновлён
+        "403":
+          description: Доступ запрещён
+        "404":
+          description: Пост не найден
+
+    delete:
+      tags: [Posts]
+      summary: Удаление поста
+      security:
+        - AuthTokenHeader: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Пост удалён
+        "403":
+          description: Доступ запрещён
+        "404":
+          description: Пост не найден
+
+  /posts/{id}/image:
+    delete:
+      tags: [Posts]
+      summary: Удалить изображение из поста
+      security:
+        - AuthTokenHeader: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Изображение удалено
+        "403":
+          description: Доступ запрещён
+        "404":
+          description: Пост не найден
+
+  /posts/schedulePost/{id}:
+    post:
+      tags: [Posts]
+      summary: Запланировать пост
+      security:
+        - AuthTokenHeader: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [scheduledAt]
+              properties:
+                scheduledAt:
+                  type: string
+                  format: date-time
+                  example: "2025-10-09T12:00:00Z"
+      responses:
+        "200":
+          description: Пост запланирован
+        "403":
+          description: Доступ запрещён
+        "404":
+          description: Пост не найден
+
+    delete:
+      tags: [Posts]
+      summary: Отменить запланированную публикацию
+      security:
+        - AuthTokenHeader: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Запланированная публикация отменена
+        "403":
+          description: Доступ запрещён
+        "404":
+          description: Пост не найден
+
+  /posts/sendPost/{id}:
+    post:
+      tags: [Posts]
+      summary: Отправить пост вручную
+      security:
+        - AuthTokenHeader: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Пост отправлен
+        "403":
+          description: Доступ запрещён
+        "404":
+          description: Пост не найден
+
+  /posts/generate-posts/{userId}:
+    post:
+      tags: [Posts]
+      summary: Сгенерировать посты на основе пользовательских настроек
+      security:
+        - AuthTokenHeader: []
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Сгенерированные посты
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  userId: { type: integer }
+                  posts:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Post"
+        "403":
+          description: Доступ запрещён
+
+components:
+  securitySchemes:
+    AuthTokenHeader:
+      type: apiKey
+      in: header
+      name: x-auth-token
+      description: >
+        Уникальный токен авторизации пользователя.
+        Передаётся в каждом запросе, где требуется проверка владельца (в header x-auth-token).
+
+  schemas:
+    UserSettings:
+      type: object
+      properties:
+        username:
+          type: string
+          example: "admin"
+        telegram_token:
+          type: string
+          example: "1234567890:ABC-DEF1234ghIklmNOP"
+        channel_id:
+          type: string
+          example: "@my_channel"
+        add_images:
+          type: boolean
+          example: true
+        use_own_posts:
+          type: boolean
+          example: false
+        use_other_channels:
+          type: boolean
+          example: true
+        channels_list:
+          type: array
+          items: { type: string }
+          example: ["@technews", "@funnyvideos"]
+        use_sites:
+          type: boolean
+          example: true
+        sites_list:
+          type: array
+          items: { type: string }
+          example: ["https://example.com", "https://another.com"]
+
+    Post:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 12
+        user_id:
+          type: integer
+          example: 1
+        title:
+          type: string
+          example: "Заголовок поста"
+        description:
+          type: string
+          example: "Описание поста для Telegram"
+        url:
+          type: string
+          nullable: true
+          example: "https://placehold.co/600x400"
+        scheduledAt:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2025-10-09T12:00:00Z"
+        sent:
+          type: integer
+          example: 0
+
+    PostCreate:
+      type: object
+      required: [userId, title]
+      properties:
+        userId:
+          type: integer
+          example: 1
+        title:
+          type: string
+          example: "Мой первый пост"
+        description:
+          type: string
+          example: "Это тестовое описание"
+        url:
+          type: string
+          nullable: true
+          example: "https://placehold.co/600x400"
+        scheduledAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    PostUpdate:
+      type: object
+      properties:
+        title: { type: string }
+        description: { type: string }
+        url:
+          type: string
+          nullable: true
+        scheduledAt:
+          type: string
+          format: date-time
+          nullable: true
