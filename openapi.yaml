@@ -5,6 +5,8 @@ info:
   description: >
     REST API для управления пользователями, их настройками, постами и автоматической публикацией в Telegram-каналы.
 servers:
+  - url: https://apgram-backend.onrender.com/api
+    description: Продакшен (Render)
   - url: http://localhost:4000/api
     description: Локальный сервер разработки
 
