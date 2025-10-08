@@ -1,6 +1,6 @@
 openapi: 3.0.3
 info:
-  title: Telegram Post Generator API
+  title: APgram API
   version: 1.0.0
   description: >
     REST API для управления пользователями, их настройками, постами и автоматической публикацией в Telegram-каналы.
