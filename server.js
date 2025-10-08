@@ -2,6 +2,11 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import http from "http";
+import swaggerUi from "swagger-ui-express";
+import YAML from "yamljs";
+import path from "path";
+import { fileURLToPath } from "url";
+
 import usersRouter from "./users.js";
 import postsRouter, { attachEvents as attachPostsEvents } from "./posts.js";
 
@@ -11,6 +16,12 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Swagger setup
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const swaggerDocument = YAML.load(path.join(__dirname, "openapi.yaml"));
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+
 app.use("/api/users", usersRouter);
 app.use("/api/posts", postsRouter);
 
@@ -19,4 +30,6 @@ const server = http.createServer(app);
 
 attachPostsEvents(server);
 
-server.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
+server.listen(PORT, () =>
+  console.log(`🚀 Server running on http://localhost:${PORT}\n📘 Swagger UI: http://localhost:${PORT}/api-docs`)
+);
