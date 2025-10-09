@@ -16,9 +16,12 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Swagger setup
+// 👉 добавь эту строку:
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+app.use("/uploads", express.static(path.join(__dirname, "uploads"))); // ✅ отдаём картинки
+
+// Swagger setup
 const swaggerDocument = YAML.load(path.join(__dirname, "openapi.yaml"));
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
