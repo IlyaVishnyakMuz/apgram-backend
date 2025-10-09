@@ -387,6 +387,17 @@ paths:
           name: userId
           required: true
           schema: { type: integer }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                prompt:
+                  type: string
+                  description: "Необязательный текст/промпт для генерации постов (если не указан, используются настройки пользователя и по-умолчанию создаётся промпт)."
+                  example: "Темы: технологии, ИИ, стартапы"
       responses:
         "200":
           description: Сгенерированные посты
@@ -501,8 +512,10 @@ components:
     PostUpdate:
       type: object
       properties:
-        title: { type: string }
-        description: { type: string }
+        title:
+          type: string
+        description:
+          type: string
         url:
           type: string
           nullable: true
