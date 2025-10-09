@@ -189,17 +189,31 @@ router.get("/user/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
     const requesterId = await getRequesterId(req);
+
     if (requesterId === null) {
-      return res.status(400).json({ success: false, error: "user authentication required (provide x-auth-token or auth_token or x-auth-token)" });
+      return res.status(400).json({
+        success: false,
+        error: "user authentication required (provide x-auth-token or auth_token or x-auth-token)",
+      });
     }
+
     if (Number(userId) !== requesterId) {
       return res.status(403).json({ success: false, error: "Доступ запрещён" });
     }
 
     const posts = await db.all(
-      "SELECT * FROM posts WHERE user_id = ? ORDER BY datetime(scheduledAt) ASC, id DESC",
+      `
+      SELECT *
+      FROM posts
+      WHERE user_id = ?
+      ORDER BY 
+        CASE WHEN scheduledAt IS NULL THEN 1 ELSE 0 END,  -- сначала те, где scheduledAt есть
+        datetime(scheduledAt) ASC,                        -- сортировка по времени публикации
+        id DESC                                           -- потом обычные по дате добавления
+      `,
       userId
     );
+
     res.json(posts);
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -401,26 +415,35 @@ router.post("/sendPost/:id", async (req, res) => {
 router.post("/generate-posts/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
+    const { prompt } = req.body; // <–– получаем prompt из тела запроса (необязательный)
     const requesterId = await getRequesterId(req);
+
     if (requesterId === null) {
-      return res.status(400).json({ success: false, error: "user authentication required (provide x-auth-token or auth_token or x-auth-token)" });
+      return res.status(400).json({
+        success: false,
+        error: "user authentication required (provide x-auth-token or auth_token or x-auth-token)",
+      });
     }
+
     if (Number(userId) !== requesterId) {
       return res.status(403).json({ success: false, error: "Доступ запрещён" });
     }
 
+    // получаем настройки пользователя
     const settings = await usersDb.get(
       `SELECT add_images, use_own_posts, use_other_channels AS use_channels, channels_list, use_sites, sites_list AS site_list
        FROM users WHERE id = ?`,
       userId
     );
 
-    const posts = await generatePostsService(settings || {});
+    // передаём prompt в generatePostsService
+    const posts = await generatePostsService(settings || {}, prompt);
+
     const formatted = posts.map((p, i) => ({
       id: p.id,
       title: p.title || `Пост #${i + 1}`,
       description: p.description || "Описание отсутствует",
-      url: p.url || "https://placehold.co/600x400",
+      url: p.url || null,
     }));
 
     res.json({
